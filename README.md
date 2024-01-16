@@ -11,7 +11,7 @@ add "sudo" in front if needed
 
 The next step reach your ROS workspace and in the src folder use the command:
 ```
-git clone https://github.com/SimoneLombardi/RT1_second_assingnment.git
+git clone https://github.com/SimoneLombardi/assignment_2_2023.git
 ```
 Build the work space by using 
 ```
