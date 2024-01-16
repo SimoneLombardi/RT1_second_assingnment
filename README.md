@@ -8,6 +8,7 @@ start with installing "xterm" with the following command:
 apt-get install xterm
 ```
 add "sudo" in front if needed
+
 The next step reach your ROS workspace and in the src folder use the command:
 ```
 git clone https://github.com/SimoneLombardi/RT1_second_assingnment.git
@@ -28,8 +29,7 @@ if the python scripts first line returns an error like: #! /usr/bin/env python/r
 ### Node A
 The node A which is named "bug_ac.py" implements an Action client for the action /reachin_goal, the server for this action was provided to us and is located in the script "bug_as.py", logic for the action client is explained in the following flow chart: 
 
-
-
+![Node_A drawio](https://github.com/SimoneLombardi/RT1_second_assingnment/assets/146358714/d3e32265-bcc7-4adc-b7ea-2376cc2791ef)
 
 The node execute two different task: the first one is to control the action client, asking the user to insert two numbers that are used to send a goal request to the action server. Secondly the action client implements a subscriber to the topic /odom, from this topic it recovers some information that are than published on the topic /custom_vel as a custom message definede in Cstm_vel.msg.
 
