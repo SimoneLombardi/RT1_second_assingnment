@@ -1,0 +1,4 @@
+---
+float64 dist
+float64 avg_speed_lin
+float64 avg_speed_ang
