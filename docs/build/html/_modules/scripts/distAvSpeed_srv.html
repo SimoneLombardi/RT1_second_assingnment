@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>scripts.distAvSpeed_srv &mdash; Assignment_2_RT1 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=eafc0fe6" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+        <script src="../../_static/doctools.js?v=888ff710"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Assignment_2_RT1
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Assignment_2_RT1</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">scripts.distAvSpeed_srv</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for scripts.distAvSpeed_srv</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">.. module:: distAvSpeed_srv</span>
+
+<span class="sd">.. moduleauthor:: Simone Lombardi</span>
+
+<span class="sd">This node implements the server for the service distAvSpeed_srv. This module calculates the average speed of the robot and the distance between the robot and the last goal.</span>
+<span class="sd">By subscribing to the topic /custom_vel, it saves the speed of the robot in two lists, one for the linear speed and one for the angular speed. When the lists are full, the module calculates the average speed and the distance between the robot and the last goal and returns them as a response to the service call.</span>
+<span class="sd">The averaging window is set by the parameter avg_win, that is present in the launch file for the simulation, after the window is full the new data will replace the oldest one, coming from the subscriber /custom_vel.</span>
+<span class="sd">The module also calls the service lastGoal to get the position of the last goal.</span>
+
+<span class="sd">Subscriber:</span>
+<span class="sd">    /custom_vel: The velocity of the robot, uses the custom message Cstm_vel.</span>
+
+<span class="sd">Publisher:</span>
+<span class="sd">    None</span>
+
+<span class="sd">Service:</span>
+<span class="sd">    distAvSpeed_srv: The service that returns the average speed of the robot and the distance between the robot and the last goal.</span>
+
+<span class="sd">Service client:</span>
+<span class="sd">    lastGoal: The service that returns the position of the last goal.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">rospy</span>
+<span class="kn">import</span> <span class="nn">numpy</span> 
+
+<span class="kn">import</span> <span class="nn">assignment_2_2023.msg</span>
+
+<span class="kn">from</span> <span class="nn">assignment_2_2023.srv</span> <span class="kn">import</span> <span class="n">Dst_avSpeed</span><span class="p">,</span> <span class="n">Dst_avSpeedResponse</span>
+<span class="kn">from</span> <span class="nn">assignment_2_2023.srv</span> <span class="kn">import</span> <span class="n">Last_goal</span><span class="p">,</span> <span class="n">Last_goalResponse</span>
+<span class="kn">from</span> <span class="nn">assignment_2_2023.msg</span> <span class="kn">import</span> <span class="n">Cstm_vel</span>
+
+<span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="n">Speed_lin</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># lista vuota per vel lineare</span>
+<span class="n">Speed_ang</span> <span class="o">=</span> <span class="p">[]</span> <span class="c1"># lista vuota per vel angolare</span>
+<span class="n">dr_x</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">dr_y</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+<div class="viewcode-block" id="sub_callback">
+<a class="viewcode-back" href="../../index.html#scripts.distAvSpeed_srv.sub_callback">[docs]</a>
+<span class="k">def</span> <span class="nf">sub_callback</span><span class="p">(</span><span class="n">Cstm_vel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Callback function for the subscriber /custom_vel.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        Cstm_vel (assignment_2_2023.msg.Cstm_vel): The velocity of the robot.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        None</span>
+
+<span class="sd">    This callback function is used by the subscriber to the topic /custom_vel to periodically update the data in the lists containing the linear and angular speed of the robot.</span>
+<span class="sd">    While the service is waiting for a call by the user. The linear speed is saved in Speed_lin and the angular speed is saved in Speed_ang.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># ogni volta che arriva un messaggio sul topic /custom_vel devo salvare la distanza e dopo che viene salvato</span>
+    <span class="c1"># 10 dati sulla velocità faccio la media</span>
+    <span class="k">global</span> <span class="n">counter</span>
+    <span class="n">counter</span> <span class="o">=</span> <span class="n">counter</span> <span class="o">+</span> <span class="mi">1</span> <span class="c1"># incremento il contatore</span>
+    
+    <span class="k">if</span> <span class="n">counter</span> <span class="o">&gt;=</span> <span class="n">rospy</span><span class="o">.</span><span class="n">get_param</span><span class="p">(</span><span class="s1">&#39;avg_win&#39;</span><span class="p">):</span>
+        <span class="k">del</span> <span class="n">Speed_lin</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">del</span> <span class="n">Speed_ang</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        
+        <span class="n">Speed_lin</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Cstm_vel</span><span class="o">.</span><span class="n">vel_x</span><span class="p">)</span>
+        <span class="n">Speed_ang</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Cstm_vel</span><span class="o">.</span><span class="n">vel_z</span><span class="p">)</span>
+        
+    <span class="k">elif</span> <span class="n">counter</span> <span class="o">&lt;</span> <span class="n">rospy</span><span class="o">.</span><span class="n">get_param</span><span class="p">(</span><span class="s1">&#39;avg_win&#39;</span><span class="p">):</span>
+        
+        <span class="n">Speed_lin</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Cstm_vel</span><span class="o">.</span><span class="n">vel_x</span><span class="p">)</span>
+        <span class="n">Speed_ang</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Cstm_vel</span><span class="o">.</span><span class="n">vel_z</span><span class="p">)</span>
+        
+    <span class="c1"># salvo la poszione del drone </span>
+    <span class="n">dr_x</span> <span class="o">=</span> <span class="n">Cstm_vel</span><span class="o">.</span><span class="n">x</span>
+    <span class="n">dr_y</span> <span class="o">=</span> <span class="n">Cstm_vel</span><span class="o">.</span><span class="n">y</span></div>
+
+    
+        
+<div class="viewcode-block" id="srv_callback">
+<a class="viewcode-back" href="../../index.html#scripts.distAvSpeed_srv.srv_callback">[docs]</a>
+<span class="k">def</span> <span class="nf">srv_callback</span><span class="p">(</span><span class="n">Dst_avSpeed</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Callback function for the service distAvSpeed_srv.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        Dst_avSpeed (assignment_2_2023.srv.Dst_avSpeed): The service request.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dst_avSpeedResponse: The service response.</span>
+
+<span class="sd">    This callback function is used by the service server after recieving a call from the user. It calculates the average speed of the robot and the distance between the robot and the last goal and returns them as a response to the service call.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># quando viene chiamato il mio messaggio richiamo il servizio per prendere la posizione dell&#39;ultimo goal</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">srv_client</span><span class="o">.</span><span class="n">call</span><span class="p">()</span>
+    
+    <span class="c1"># definisco la risposta del servizio distAvSpeed_srv</span>
+    <span class="n">srvResponse</span> <span class="o">=</span> <span class="n">Dst_avSpeedResponse</span><span class="p">()</span>
+    
+    <span class="c1"># distanza euclidea tra la posizione del drone e l&#39;ultimo goal</span>
+    <span class="n">srvResponse</span><span class="o">.</span><span class="n">dist</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">response</span><span class="o">.</span><span class="n">x</span> <span class="o">-</span> <span class="n">dr_x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">y</span> <span class="o">-</span> <span class="n">dr_y</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    
+    <span class="c1"># velocità media lineare e angolare</span>
+    <span class="n">srvResponse</span><span class="o">.</span><span class="n">avg_speed_lin</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">Speed_lin</span><span class="p">)</span>
+    <span class="n">srvResponse</span><span class="o">.</span><span class="n">avg_speed_ang</span> <span class="o">=</span> <span class="n">numpy</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">Speed_ang</span><span class="p">)</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="n">srvResponse</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">srvResponse</span></div>
+
+    
+    
+<div class="viewcode-block" id="divAvSpeed_srv">
+<a class="viewcode-back" href="../../index.html#scripts.distAvSpeed_srv.divAvSpeed_srv">[docs]</a>
+<span class="k">def</span> <span class="nf">divAvSpeed_srv</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    divAvSpeed_srv is the main function of the module distAvSpeed_srv.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        None</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        None</span>
+
+<span class="sd">    This function initializes the node, the subscriber and the service. It also waits for the service lastGoal to be activated and defines the service proxy.</span>
+<span class="sd">    The lastGoal service is used to get the coordinates of the last goal set by the user.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># node inizialization</span>
+    <span class="n">rospy</span><span class="o">.</span><span class="n">init_node</span><span class="p">(</span><span class="s1">&#39;divAvSpeed_srv&#39;</span><span class="p">)</span>
+    
+    <span class="k">global</span> <span class="n">sub</span>
+    <span class="n">sub</span> <span class="o">=</span> <span class="n">rospy</span><span class="o">.</span><span class="n">Subscriber</span><span class="p">(</span><span class="s1">&#39;/custom_vel&#39;</span><span class="p">,</span> <span class="n">Cstm_vel</span><span class="p">,</span> <span class="n">sub_callback</span><span class="p">)</span>
+    
+    <span class="c1"># Service definition</span>
+    <span class="n">srv</span> <span class="o">=</span> <span class="n">rospy</span><span class="o">.</span><span class="n">Service</span><span class="p">(</span><span class="s1">&#39;divAvSpeed_srv&#39;</span><span class="p">,</span> <span class="n">Dst_avSpeed</span><span class="p">,</span> <span class="n">srv_callback</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;dist avrg Speed service ready&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># wait for service activation</span>
+    <span class="n">rospy</span><span class="o">.</span><span class="n">wait_for_service</span><span class="p">(</span><span class="s1">&#39;lastGoal&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># define service proxy</span>
+    <span class="k">global</span> <span class="n">srv_client</span>
+    <span class="n">srv_client</span> <span class="o">=</span> <span class="n">rospy</span><span class="o">.</span><span class="n">ServiceProxy</span><span class="p">(</span><span class="s1">&#39;lastGoal&#39;</span><span class="p">,</span> <span class="n">Last_goal</span><span class="p">)</span>
+    
+    
+    <span class="c1"># repetition</span>
+    <span class="n">rospy</span><span class="o">.</span><span class="n">spin</span><span class="p">()</span></div>
+
+    
+    
+    
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">divAvSpeed_srv</span><span class="p">()</span>
+    <span class="k">except</span> <span class="n">rospy</span><span class="o">.</span><span class="n">ROSInterruptException</span><span class="p">:</span>
+        <span class="k">pass</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Simone Lombardi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
