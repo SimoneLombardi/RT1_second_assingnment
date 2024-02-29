@@ -1,4 +1,19 @@
 #! /usr/bin/env python
+"""
+.. module:: bug_ac
+
+.. moduleauthor:: Simone Lombardi
+
+This node implements the client for the action server bug_as.py. This module asks the user for a couple of goal cordinates and send the request to the action server.
+The user can also cancel the goal and insert a new one.
+
+Subscriber:
+    /odom: The position and velocity of the robot.
+
+Publisher:
+    /custom_vel: The velocity of the robot, uses the custom message Cstm_vel.
+"""
+
 
 import rospy
 
@@ -17,6 +32,18 @@ from nav_msgs.msg import Odometry
 
 
 def callback(Odometry):
+    """
+    Callback function for the subscriber /odom. 
+
+    Args:
+        Odometry (nav_msgs.msg.Odometry): The position and velocity of the robot.
+
+    Returns:
+        None
+
+    This callback function reads the position and velocity of the robot from the topic /odom, than saves some of the information in a custom message (Cstm_vel)
+    and publishes it on the topic /custom_vel.
+    """
     custom_vel = Cstm_vel()
     # define the variable of type Csmt_vel
     
@@ -32,6 +59,16 @@ def callback(Odometry):
 
     
 def user_input(client):
+    """
+    This function asks the user for an input to cancel the goal or to continue to the goal, furthermore it checks if the goal is already reached if so 
+    the request to cancel the goal is not sent to the action server.
+
+    Args:
+        client (SimpleActionClient): The action client.
+
+    Returns:
+        int: 0 if the goal is reached, 1 if the goal is not reached.
+    """
     # if the goal is still active i ask the user to cancel it
     inp = input("Do you want to cancel the goal? (y/n) ")
         
@@ -55,6 +92,18 @@ def user_input(client):
 
 
 def bug_ac():
+    """
+    bug_ac function the main function of the module.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    This function initializes the node, the subscriber(to the topic /odom) and the publisher(to the topic /custom_vel).
+    It also initializes the action client and waits for the action server to start, and in a while loop asks the user for a 'goal' and sends the request to the action server.
+    """
     rospy.init_node('bug_ac')
     
     sub = rospy.Subscriber('/odom', Odometry, callback)

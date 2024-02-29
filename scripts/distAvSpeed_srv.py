@@ -1,4 +1,26 @@
 #! /usr/bin/env python
+"""
+.. module:: distAvSpeed_srv
+
+.. moduleauthor:: Simone Lombardi
+
+This node implements the server for the service distAvSpeed_srv. This module calculates the average speed of the robot and the distance between the robot and the last goal.
+By subscribing to the topic /custom_vel, it saves the speed of the robot in two lists, one for the linear speed and one for the angular speed. When the lists are full, the module calculates the average speed and the distance between the robot and the last goal and returns them as a response to the service call.
+The averaging window is set by the parameter avg_win, that is present in the launch file for the simulation, after the window is full the new data will replace the oldest one, coming from the subscriber /custom_vel.
+The module also calls the service lastGoal to get the position of the last goal.
+
+Subscriber:
+    /custom_vel: The velocity of the robot, uses the custom message Cstm_vel.
+
+Publisher:
+    None
+
+Service:
+    distAvSpeed_srv: The service that returns the average speed of the robot and the distance between the robot and the last goal.
+
+Service client:
+    lastGoal: The service that returns the position of the last goal.
+"""
 
 import rospy
 import numpy 
@@ -18,6 +40,18 @@ dr_y = 0
 
 
 def sub_callback(Cstm_vel):
+    """
+    Callback function for the subscriber /custom_vel.
+
+    Args:
+        Cstm_vel (assignment_2_2023.msg.Cstm_vel): The velocity of the robot.
+
+    Returns:
+        None
+
+    This callback function is used by the subscriber to the topic /custom_vel to periodically update the data in the lists containing the linear and angular speed of the robot.
+    While the service is waiting for a call by the user. The linear speed is saved in Speed_lin and the angular speed is saved in Speed_ang.
+    """
     # ogni volta che arriva un messaggio sul topic /custom_vel devo salvare la distanza e dopo che viene salvato
     # 10 dati sulla velocità faccio la media
     global counter
@@ -41,7 +75,17 @@ def sub_callback(Cstm_vel):
     
         
 def srv_callback(Dst_avSpeed):
-    
+    """
+    Callback function for the service distAvSpeed_srv.
+
+    Args:
+        Dst_avSpeed (assignment_2_2023.srv.Dst_avSpeed): The service request.
+
+    Returns:
+        Dst_avSpeedResponse: The service response.
+
+    This callback function is used by the service server after recieving a call from the user. It calculates the average speed of the robot and the distance between the robot and the last goal and returns them as a response to the service call.
+    """
     # quando viene chiamato il mio messaggio richiamo il servizio per prendere la posizione dell'ultimo goal
     response = srv_client.call()
     
@@ -61,6 +105,18 @@ def srv_callback(Dst_avSpeed):
     
     
 def divAvSpeed_srv():
+    """
+    divAvSpeed_srv is the main function of the module distAvSpeed_srv.
+
+    Args:
+        None
+    
+    Returns:
+        None
+
+    This function initializes the node, the subscriber and the service. It also waits for the service lastGoal to be activated and defines the service proxy.
+    The lastGoal service is used to get the coordinates of the last goal set by the user.
+    """
     # node inizialization
     rospy.init_node('divAvSpeed_srv')
     
