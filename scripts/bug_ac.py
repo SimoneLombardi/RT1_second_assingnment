@@ -57,7 +57,7 @@ def callback(Odometry):
     
     pub.publish(custom_vel)
 
-    
+'''   
 def user_input(client):
     """
     This function asks the user for an input to cancel the goal or to continue to the goal, furthermore it checks if the goal is already reached if so 
@@ -87,7 +87,7 @@ def user_input(client):
         else:
             print("Continue to the goal")
             return 1
-        
+'''       
         
 
 
@@ -107,7 +107,7 @@ def bug_ac():
     rospy.init_node('bug_ac')
     
     sub = rospy.Subscriber('/odom', Odometry, callback)
-    # recover information from the topic /odom -> to publish them on another topi'''
+    # recover information from the topic /odom -> to publish them on another topic'''
     
     global pub
     pub = rospy.Publisher('/custom_vel', Cstm_vel, queue_size=10)
@@ -115,18 +115,19 @@ def bug_ac():
     
     # define the action client variable 
     # fields: name of the action server, pkg_name.msg.dotActionfileName/Action
-    client = actionlib.SimpleActionClient('/reaching_goal', assignment_2_2023.msg.PlanningAction)
+    #client = actionlib.SimpleActionClient('/reaching_goal', assignment_2_2023.msg.PlanningAction)
     
     # wait for the action server to start
-    client.wait_for_server()
+    #client.wait_for_server()
     
     # set the goal
     # create a goal variable of msg file PlanningGoal --> il tipo PlanningGoal ha un campo target_pose di tipo Pose
     # che è di tipo geometry_msgs/PoseStamped
-    goal = assignment_2_2023.msg.PlanningGoal()
+    #goal = assignment_2_2023.msg.PlanningGoal()
     
     rate = rospy.Rate(10)
     
+    '''
     while not rospy.is_shutdown():
          
         try:
@@ -151,7 +152,7 @@ def bug_ac():
 
 
         rate.sleep()
-        
+    '''    
     rospy.spin()
     
     
